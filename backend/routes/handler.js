@@ -1,12 +1,48 @@
 const router = require('express').Router();
 const Schemas = require('../models/Schemas.js');
+const { GridFsStorage } = require('multer-gridfs-storage');
+
+const path = require('path');
+const crypto = require('crypto');
+const multer = require('multer');
+
+require('dotenv').config();
+const uri = process.env.ATLAS_URI;
+
+// Create storage engine
+const storage = new GridFsStorage({
+    url: uri,
+    file: (req, file) => {
+        return new Promise((resolve, reject) => {
+            crypto.randomBytes(16, (err, buf) => {
+                if (err) {
+                    return reject(err);
+                }
+                const filename = buf.toString('hex') + path.extname(file.originalname);
+                const fileInfo = {
+                    filename: filename,
+                    bucketName: 'uploads'
+                };
+                resolve(fileInfo);
+            });
+        });
+    }
+});
+
+const upload = multer({ storage });
+
+
+router.post('/upload', upload.single('file'), (req, res) => {
+    res.json({ file: req.file })
+});
+
 
 router.get('/users', (req, res) => {
 
     const users = Schemas.Users;
 
     users.find()
-        .then(usertable => res.json(usertable))
+        .then(userTable => res.json(userTable))
         .catch(err => res.status(400).json('Error: ' + err));
 });
 
@@ -15,7 +51,7 @@ router.get('/posts', (req, res) => {
     const posts = Schemas.Posts;
 
     posts.find()
-        .then(poststable => res.json(poststable))
+        .then(postsTable => res.json(postsTable))
         .catch(err => res.status(400).json('Error: ' + err));
 });
 
@@ -52,6 +88,5 @@ router.post('/addPost', (req, res) => {
         .then(() => res.json('Post added!'))
         .catch(err => res.status(400).json('Error: ' + err));
 });
-
 
 module.exports = router;
