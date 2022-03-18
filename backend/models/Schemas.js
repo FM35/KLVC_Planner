@@ -1,29 +1,30 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+require('dotenv').config();
+const uri = process.env.ATLAS_URI;
+const { GridFsStorage } = require('multer-gridfs-storage');
+const path = require('path');
+const crypto = require('crypto');
+const multer = require('multer');
 
-const userSchema = new Schema({
-    username: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
-        minlength: 3
-    },
-}, {
-    timestamps: true,
+// Create storage engine
+const storage = new GridFsStorage({
+    url: uri,
+    file: (req, file) => {
+        return new Promise((resolve, reject) => {
+            crypto.randomBytes(16, (err, buf) => {
+                if (err) {
+                    return reject(err);
+                }
+                const filename = buf.toString('hex') + path.extname(file.originalname);
+                const fileInfo = {
+                    filename: filename,
+                    bucketName: 'uploads'
+                };
+                resolve(fileInfo);
+            });
+        });
+    }
 });
 
-const postSchema = new Schema({
-    username: { type: String, required: true },
-    graphic: { type: String, required: true },
-    description: { type: String, required: true },
-    start_date: { type: Date, required: true },
-    end_date: { type: Date, required: true },
-    frequency: { type: String, required: true },
-});
+const upload = multer({ storage });
 
-const User = mongoose.model('User', userSchema);
-const Post = mongoose.model('Post', postSchema);
-const mySchemas = { 'Users': User, 'Posts': Post };
-
-module.exports = mySchemas;
+module.exports = upload;
